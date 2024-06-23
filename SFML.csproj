@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Winexe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+		<OutputType></OutputType>
+	</PropertyGroup>
+	
+  <ItemGroup>
+    <PackageReference Include="OpenTK" Version="4.8.2" />
+    <PackageReference Include="SFML.Net" Version="2.6.0" />
+  </ItemGroup>
+
+</Project>
