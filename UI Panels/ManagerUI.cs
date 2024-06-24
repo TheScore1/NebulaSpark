@@ -10,10 +10,10 @@ namespace SFML
     {
         GameLoop gameLoop;
 
-        public static Color ActiveMainColor;
-        public static Color ActiveSecondColor;
+        public static Color ActiveMainColor = Color.Black;
+        public static Color ActiveSecondColor = Color.White;
 
-        RectangleShape palettePanel;
+        public RectangleShape palettePanel;
         public RectangleShape colorWheelPanel;
         public RectangleShape canvasPanel;
         RectangleShape colorMainPanel;
@@ -34,9 +34,6 @@ namespace SFML
         {
             gameLoop = mainGameLoop;
 
-            ActiveMainColor = Color.Black;
-            ActiveSecondColor = Color.White;
-
             canvas = new Canvas(20, 20);
             palette = new Palette();
             colorWheel = new ColorWheel();
@@ -44,100 +41,68 @@ namespace SFML
             vBorderLastPos = gameLoop.Window.Size.X / 4 - BorderSize / 2;
             hBorderLastPos = gameLoop.Window.Size.Y / 2 - BorderSize / 2;
 
-            vBorder = new RectangleShape(new Vector2f(BorderSize, gameLoop.Window.Size.Y));
-            vBorder.Position = new Vector2f(vBorderLastPos, 0f);
+            vBorder = new RectangleShape(new Vector2f(BorderSize, gameLoop.Window.Size.Y))
+            {
+                Position = new Vector2f(vBorderLastPos, 0f),
+                FillColor = new Color(0, 120, 215)
+            };
+#if DEBUG
             vBorder.FillColor = Color.Magenta;
-#if RELEASE
-            vBorder.FillColor = new Color(0, 120, 215);
 #endif
 
-            hBorder = new RectangleShape(new Vector2f(vBorderLastPos, BorderSize));
-            hBorder.Position = new Vector2f(0f, hBorderLastPos);
-#if RELEASE
-            hBorder.FillColor = new Color(0, 120, 215);
+            hBorder = new RectangleShape(new Vector2f(vBorderLastPos, BorderSize))
+            {
+                Position = new Vector2f(0f, hBorderLastPos),
+                FillColor = new Color(0, 120, 215)
+            };
+#if DEBUG
+            hBorder.FillColor = Color.Blue;
 #endif
 
-            palettePanel = new RectangleShape(new Vector2f(vBorderLastPos - BorderSize / 2, gameLoop.Window.Size.Y / 2 - BorderSize / 2));
-            palettePanel.Position = new Vector2f(0f, 0f);
+            palettePanel = new RectangleShape(new Vector2f(vBorderLastPos, gameLoop.Window.Size.Y / 2 - BorderSize / 2))
+            {
+                Position = new Vector2f(0f, 0f),
+                FillColor = new Color(124, 85, 88)
+            };
+#if DEBUG
             palettePanel.FillColor = Color.Yellow;
-#if RELEASE
-            palettePanel.FillColor = new Color(124, 85, 88);
 #endif
 
-            colorWheelPanel = new RectangleShape(new Vector2f(vBorderLastPos, gameLoop.Window.Size.Y / 2 - BorderSize / 2));
-            colorWheelPanel.Position = new Vector2f(0f, gameLoop.Window.Size.Y / 2 + BorderSize / 2);
+            colorWheelPanel = new RectangleShape(new Vector2f(vBorderLastPos, gameLoop.Window.Size.Y / 2 - BorderSize / 2))
+            {
+                Position = new Vector2f(0f, gameLoop.Window.Size.Y / 2 + BorderSize / 2),
+                FillColor = new Color(124, 85, 88)
+            };
+#if DEBUG
             colorWheelPanel.FillColor = Color.Cyan;
-#if RELEASE
-            colorWheelPanel.FillColor = new Color(124, 85, 88);
 #endif
 
-            canvasPanel = new RectangleShape(new Vector2f(gameLoop.Window.Size.X - vBorderLastPos - BorderSize, gameLoop.Window.Size.Y));
-            canvasPanel.Position = new Vector2f(vBorderLastPos + BorderSize, 0f);
-            canvasPanel.FillColor = new Color(124, 85, 88);
+            canvasPanel = new RectangleShape(new Vector2f(gameLoop.Window.Size.X - vBorderLastPos - BorderSize, gameLoop.Window.Size.Y))
+            {
+                Position = new Vector2f(vBorderLastPos + BorderSize, 0f),
+                FillColor = new Color(124, 85, 88)
+            };
 
             colorMainPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
             colorMainPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 - Palette.DefaultShapeSize.X * 2);
-            if (ActiveMainColor.A > 0)
+            if (ActiveMainColor.A == 255)
                 colorMainPanel.FillColor = ActiveMainColor;
+            else if (ActiveMainColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
+                colorMainPanel.FillColor = PaletteItem.ColorWithAlpha(ActiveMainColor);
             else
-            {
-                var backColorEven = new Color(51, 18, 73);
-                var backColorOdd = new Color(217, 217, 220);
-                Image img = new Image(4, 4);
-                for (int i = 0; i < img.Size.X; i++)
-                    for (int j = 0; j < img.Size.Y; j++)
-                    {
-                        if (j % 2 == 0)
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                        }
-                        else
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                        }
-                    }
-                colorMainPanel.Texture = new Texture(img);
-            }
-            colorMainPanel.OutlineColor = Color.Black;
-            colorMainPanel.OutlineThickness = -6;
+                colorMainPanel.Texture = CreateTransparentTexture(4, 4);
+            colorMainPanel.OutlineColor = TweaksUI.OutlineColor;
+            colorMainPanel.OutlineThickness = TweaksUI.OutlineThickness;
 
             colorSecondPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
             colorSecondPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 + 6);
-            if (ActiveSecondColor.A > 0)
+            if (ActiveSecondColor.A == 255)
                 colorSecondPanel.FillColor = ActiveSecondColor;
+            else if (ActiveSecondColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
+                colorSecondPanel.FillColor = PaletteItem.ColorWithAlpha(ActiveSecondColor);
             else
-            {
-                var backColorEven = new Color(51, 18, 73);
-                var backColorOdd = new Color(217, 217, 220);
-                Image img = new Image(4, 4);
-                for (int i = 0; i < img.Size.X; i++)
-                    for (int j = 0; j < img.Size.Y; j++)
-                    {
-                        if (j % 2 == 0)
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                        }
-                        else
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                        }
-                    }
-                colorSecondPanel.Texture = new Texture(img);
-            }
-            colorSecondPanel.OutlineColor = Color.Black;
-            colorSecondPanel.OutlineThickness = -6;
+                colorSecondPanel.OutlineColor = TweaksUI.OutlineColor;
+            colorSecondPanel.OutlineThickness = TweaksUI.OutlineThickness;
         }
 
         public void LoadContent()
@@ -155,202 +120,60 @@ namespace SFML
             hBorderLastPos = size  - BorderSize / 2;
         }
 
-        public void UpdatedSize(SizeEventArgs e)
-        {
-            vBorder = new RectangleShape(new Vector2f(BorderSize, e.Height));
-            vBorder.Position = new Vector2f(vBorderLastPos, 0f);
-            vBorder.FillColor = Color.Magenta;
-#if RELEASE
-            vBorder.FillColor = new Color(0, 120, 215);
-#endif
-
-            hBorder = new RectangleShape(new Vector2f(vBorderLastPos, BorderSize));
-            hBorder.Position = new Vector2f(0f, hBorderLastPos);
-            hBorder.FillColor = Color.Blue;
-#if RELEASE
-            hBorder.FillColor = new Color(0, 120, 215);
-#endif
-
-            palettePanel = new RectangleShape(new Vector2f(vBorderLastPos, e.Height / 2 - BorderSize / 2));
-            palettePanel.Position = new Vector2f(0f, 0f);
-            palettePanel.FillColor = Color.Yellow;
-#if RELEASE
-            palettePanel.FillColor = new Color(124, 85, 88);
-#endif
-
-            colorWheelPanel = new RectangleShape(new Vector2f(vBorderLastPos, e.Height / 2 - BorderSize / 2));
-            colorWheelPanel.Position = new Vector2f(0f, e.Height / 2 + BorderSize / 2);
-            colorWheelPanel.FillColor = Color.Cyan;
-#if RELEASE
-            colorWheelPanel.FillColor = new Color(124, 85, 88);
-#endif
-
-            canvasPanel = new RectangleShape(new Vector2f(e.Width - vBorderLastPos - BorderSize, e.Height));
-            canvasPanel.Position = new Vector2f(vBorderLastPos + BorderSize, 0f);
-            canvasPanel.FillColor = new Color(124, 85, 88);
-
-            colorMainPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
-            colorMainPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 - Palette.DefaultShapeSize.X * 2);
-            if (ActiveMainColor.A > 0)
-                colorMainPanel.FillColor = ActiveMainColor;
-            else
-            {
-                var backColorEven = new Color(51, 18, 73);
-                var backColorOdd = new Color(217, 217, 220);
-                Image img = new Image(4, 4);
-                for (int i = 0; i < img.Size.X; i++)
-                    for (int j = 0; j < img.Size.Y; j++)
-                    {
-                        if (j % 2 == 0)
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                        }
-                        else
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                        }
-                    }
-                colorMainPanel.Texture = new Texture(img);
-            }
-            colorMainPanel.OutlineColor = Color.Black;
-            colorMainPanel.OutlineThickness = -6;
-
-            colorSecondPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
-            colorSecondPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 + 6);
-            if (ActiveSecondColor.A > 0)
-                colorSecondPanel.FillColor = ActiveSecondColor;
-            else
-            {
-                var backColorEven = new Color(51, 18, 73);
-                var backColorOdd = new Color(217, 217, 220);
-                Image img = new Image(4, 4);
-                for (int i = 0; i < img.Size.X; i++)
-                    for (int j = 0; j < img.Size.Y; j++)
-                    {
-                        if (j % 2 == 0)
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                        }
-                        else
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                        }
-                    }
-                colorSecondPanel.Texture = new Texture(img);
-            }
-            colorSecondPanel.OutlineColor = Color.Black;
-            colorSecondPanel.OutlineThickness = -6;
-        }
-
         public void Update()
         {
-            vBorder = new RectangleShape(new Vector2f(BorderSize, gameLoop.Window.Size.Y));
+            vBorder.Size = new Vector2f(BorderSize, gameLoop.Window.Size.Y);
             vBorder.Position = new Vector2f(vBorderLastPos, 0f);
-            vBorder.FillColor = Color.Magenta;
-#if RELEASE
-            vBorder.FillColor = new Color(0, 120, 215);
-#endif
 
-            hBorder = new RectangleShape(new Vector2f(vBorderLastPos, BorderSize));
+            hBorder.Size = new Vector2f(vBorderLastPos, BorderSize);
             hBorder.Position = new Vector2f(0f, gameLoop.Window.Size.Y / 2 - BorderSize / 2);
-            hBorder.FillColor = Color.Blue;
-#if RELEASE
-            hBorder.FillColor = new Color(0, 120, 215);
-#endif
 
-            palettePanel = new RectangleShape(new Vector2f(vBorderLastPos, gameLoop.Window.Size.Y / 2 - BorderSize / 2));
+            palettePanel.Size = new Vector2f(vBorderLastPos, gameLoop.Window.Size.Y / 2 - BorderSize / 2);
             palettePanel.Position = new Vector2f(0f, 0f);
-            palettePanel.FillColor = Color.Yellow;
-#if RELEASE
-            palettePanel.FillColor = new Color(124, 85, 88);
-#endif
 
-            colorWheelPanel = new RectangleShape(new Vector2f(vBorderLastPos, gameLoop.Window.Size.Y / 2 -     BorderSize / 2));
+            colorWheelPanel.Size = new Vector2f(vBorderLastPos, gameLoop.Window.Size.Y / 2 - BorderSize / 2);
             colorWheelPanel.Position = new Vector2f(0f, gameLoop.Window.Size.Y / 2 + BorderSize / 2);
-            colorWheelPanel.FillColor = Color.Cyan;
-#if RELEASE
-            colorWheelPanel.FillColor = new Color(124, 85, 88);
-#endif
 
-            canvasPanel = new RectangleShape(new Vector2f(gameLoop.Window.Size.X - vBorderLastPos - BorderSize, gameLoop.Window.Size.Y));
+            canvasPanel.Size = new Vector2f(gameLoop.Window.Size.X - vBorderLastPos - BorderSize, gameLoop.Window.Size.Y);
             canvasPanel.Position = new Vector2f(vBorderLastPos + BorderSize, 0f);
-            canvasPanel.FillColor = new Color(124, 85, 88);
 
             colorMainPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
             colorMainPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 - Palette.DefaultShapeSize.X * 2);
-            if (ActiveMainColor.A > 0)
+            if (ActiveMainColor.A == 255)
                 colorMainPanel.FillColor = ActiveMainColor;
+            else if (ActiveMainColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
+                colorMainPanel.FillColor = PaletteItem.ColorWithAlpha(ActiveMainColor);
             else
-            {
-                var backColorEven = new Color(51, 18, 73);
-                var backColorOdd = new Color(217, 217, 220);
-                Image img = new Image(4, 4);
-                for (int i = 0; i < img.Size.X; i++)
-                    for (int j = 0; j < img.Size.Y; j++)
-                    {
-                        if (j % 2 == 0)
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                        }
-                        else
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                        }
-                    }
-                colorMainPanel.Texture = new Texture(img);
-            }
-            colorMainPanel.OutlineColor = Color.Black;
-            colorMainPanel.OutlineThickness = -6;
+                colorMainPanel.Texture = CreateTransparentTexture(4, 4);
+            colorMainPanel.OutlineColor = TweaksUI.OutlineColor;
+            colorMainPanel.OutlineThickness = TweaksUI.OutlineThickness;
 
             colorSecondPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
             colorSecondPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 + 6);
-            if (ActiveSecondColor.A > 0)
+            if (ActiveSecondColor.A == 255)
                 colorSecondPanel.FillColor = ActiveSecondColor;
+            else if (ActiveSecondColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
+                colorSecondPanel.FillColor = PaletteItem.ColorWithAlpha(ActiveSecondColor);
             else
-            {
-                var backColorEven = new Color(51, 18, 73);
-                var backColorOdd = new Color(217, 217, 220);
-                Image img = new Image(4, 4);
-                for (int i = 0; i < img.Size.X; i++)
-                    for (int j = 0; j < img.Size.Y; j++)
-                    {
-                        if (j % 2 == 0)
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                        }
-                        else
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                        }
-                    }
-                colorSecondPanel.Texture = new Texture(img);
-            }
-            colorSecondPanel.OutlineColor = Color.Black;
-            colorSecondPanel.OutlineThickness = -6;
+                colorSecondPanel.Texture = CreateTransparentTexture(4, 4);
+            colorSecondPanel.OutlineColor = TweaksUI.OutlineColor;
+            colorSecondPanel.OutlineThickness = TweaksUI.OutlineThickness;
+        }
+
+        private Texture CreateTransparentTexture(uint width, uint height)
+        {
+            var backColorEven = new Color(51, 18, 73);
+            var backColorOdd = new Color(217, 217, 220);
+            Image img = new Image(width, height);
+            for (uint i = 0; i < img.Size.X; i++)
+                for (uint j = 0; j < img.Size.Y; j++)
+                {
+                    if (j % 2 == 0)
+                        img.SetPixel(i, j, i % 2 == 0 ? backColorEven : backColorOdd);
+                    else
+                        img.SetPixel(i, j, i % 2 == 0 ? backColorOdd : backColorEven);
+                }
+            return new Texture(img);
         }
 
         public void Draw()

@@ -7,53 +7,55 @@ namespace SFML
 {
     public class Canvas
     {
-        public RectangleShape backgroundLayer;
-        public RectangleShape DrawnLayer;
+        public RectangleShape BackgroundLayer { get; }
+        public RectangleShape DrawnLayer { get; }
         private Image background;
-        private Image DrawnLayerImage;
-        private Color backColorEven;
-        private Color backColorOdd;
+        private Image drawnLayerImage;
 
-        public static int OffsetBounds;
+        private readonly Color backColorEven;
+        private readonly Color backColorOdd;
 
-        public int[,] PixelsArray;
-
-        public Vector2f Size;
+        public static int OffsetBounds { get; private set; }
+        public Vector2f Size { get; }
 
         public Canvas(uint width, uint height)
         {
-            Size = new Vector2f(width, height);
-
-            OffsetBounds = 10;
-
             backColorEven = new Color(51, 18, 73);
             backColorOdd = new Color(217, 217, 220);
-            background = new Image(width, height);
-            for (uint i = 0; i < background.Size.X; i++)
+            Size = new Vector2f(width, height);
+            OffsetBounds = 10;
+
+            background = CreateBackgroundImage(width, height);
+            drawnLayerImage = new Image(width, height, Color.Transparent);
+
+            BackgroundLayer = new RectangleShape(new Vector2f(width, height))
             {
-                for (uint j = 0; j < background.Size.Y; j++)
-                {
-                    if (j % 2 == 0)
-                    {
-                        if (i % 2 == 0)
-                            background.SetPixel(i, j, backColorEven);
-                        else
-                            background.SetPixel(i, j, backColorOdd);
-                    }
-                    else
-                    {
-                        if (i % 2 == 0)
-                            background.SetPixel(i, j, backColorOdd);
-                        else
-                            background.SetPixel(i, j, backColorEven);
-                    }
-                }
-            }
-            DrawnLayerImage = new Image(width, height, Color.Transparent);
-            backgroundLayer = new RectangleShape(new Vector2f(width, height));
-            backgroundLayer.Texture = new Texture(background);
-            DrawnLayer = new RectangleShape(new Vector2f(width, height));
-            DrawnLayer.Texture = new Texture(DrawnLayerImage);
+                Texture = new Texture(background)
+            };
+            DrawnLayer = new RectangleShape(new Vector2f(width, height))
+            {
+                Texture = new Texture(drawnLayerImage)
+            };
+#if DEBUG
+            DebugUtility.Log($"Создан холст размером [{width}, {height}] ({width * height} пикселей)");
+#endif
+        }
+
+        private Image CreateBackgroundImage(uint width, uint height)
+        {
+            var img = new Image(width, height);
+            for (uint i = 0; i < width; i++)
+                for (uint j = 0; j < height; j++)
+                    img.SetPixel(i, j, GetPixelColor(i, j));
+            return img;
+        }
+
+        private Color GetPixelColor(uint x, uint y)
+        {
+            if (y % 2 == 0)
+                return x % 2 == 0 ? backColorEven : backColorOdd;
+            else
+                return x % 2 == 0 ? backColorOdd : backColorEven;
         }
 
         public void SetPixelColor(uint x, uint y, Color color)
@@ -61,39 +63,38 @@ namespace SFML
             if (x < Size.X && y < Size.Y)
             {
 #if DEBUG
-                Console.WriteLine($"[{x},{y}] Пиксель установлен");
+                DebugUtility.Log($"[{x},{y}] Пиксель установлен");
 #endif
-                DrawnLayerImage.SetPixel(x, y, color);
-                DrawnLayer.Texture.Update(DrawnLayerImage);
+                drawnLayerImage.SetPixel(x, y, color);
+                DrawnLayer.Texture.Update(drawnLayerImage);
             }
         }
 
-        public void ExportImage()
+        public void ExportImage(string filePath = "Autosave.png")
         {
             Texture texture = DrawnLayer.Texture;
             Image exportImage = texture.CopyToImage();
-            bool success = exportImage.SaveToFile("Autosave.png");
+            bool success = exportImage.SaveToFile(filePath);
 #if DEBUG
-            if (success)
-                Console.WriteLine($"Изображение успешно экспортировано в: {"Autosave.png"}");
-            else
-                Console.WriteLine("Ошибка при экспорте изображения.");
+            DebugUtility.Log(success
+                ? $"Изображение успешно экспортировано в: {filePath}"
+                : "Ошибка при экспорте изображения.");
 #endif
         }
 
-        public void LoadImage()
+        public void LoadImage(string filePath = "Autosave.png")
         {
-            if (File.Exists("Autosave.png"))
+            if (File.Exists(filePath))
             {
-                DrawnLayerImage = new Image("Autosave.png");
-                DrawnLayer.Texture.Update(DrawnLayerImage);
+                drawnLayerImage = new Image(filePath);
+                DrawnLayer.Texture.Update(drawnLayerImage);
 #if DEBUG
-                Console.WriteLine($"Изображение успешно загружено из: {"Autosave.png"}");
+                DebugUtility.Log($"Изображение успешно загружено из: {filePath}");
 #endif
             }
 #if DEBUG
             else
-                Console.WriteLine("Файл изображения не найден.");
+                DebugUtility.Log("Файл изображения не найден.");
 #endif
         }
 
@@ -105,16 +106,28 @@ namespace SFML
             var size = new Vector2f(
                 canvasShape.Size.X - 2 * OffsetBounds,
                 canvasShape.Size.Y - 2 * OffsetBounds);
-            backgroundLayer.Scale = new Vector2f(
-                Math.Min(size.X, size.Y) / backgroundLayer.Size.Y * CanvasCam.OffsetScaleFactor,
-                Math.Min(size.X, size.Y) / backgroundLayer.Size.Y * CanvasCam.OffsetScaleFactor);
-            backgroundLayer.Position = new Vector2f(
-                pos.X - backgroundLayer.Size.X * backgroundLayer.Scale.X / 2 + (size.X / 2),
-                pos.Y - backgroundLayer.Size.Y * backgroundLayer.Scale.Y / 2 + (size.Y / 2));
-            DrawnLayer.Scale = backgroundLayer.Scale;
-            DrawnLayer.Position = backgroundLayer.Position;
-            gameLoop.Window.Draw(backgroundLayer);
+
+            BackgroundLayer.Scale = CalculateScale(size);
+            BackgroundLayer.Position = CalculatePosition(pos, size, BackgroundLayer);
+
+            DrawnLayer.Scale = BackgroundLayer.Scale;
+            DrawnLayer.Position = BackgroundLayer.Position;
+
+            gameLoop.Window.Draw(BackgroundLayer);
             gameLoop.Window.Draw(DrawnLayer);
+        }
+
+        private Vector2f CalculateScale(Vector2f size)
+        {
+            float scaleFactor = Math.Min(size.X, size.Y) / BackgroundLayer.Size.Y * CanvasCam.OffsetScaleFactor;
+            return new Vector2f(scaleFactor, scaleFactor);
+        }
+
+        private Vector2f CalculatePosition(Vector2f pos, Vector2f size, RectangleShape layer)
+        {
+            return new Vector2f(
+                pos.X - layer.Size.X * layer.Scale.X / 2 + (size.X / 2),
+                pos.Y - layer.Size.Y * layer.Scale.Y / 2 + (size.Y / 2));
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using SFML.System;
 using SFML.Audio;
 using SFML.Graphics;
@@ -11,25 +12,21 @@ namespace SFML
     {
         public const uint DEFAULT_WINDOW_WIDTH = 960;
         public const uint DEFAULT_WINDOW_HEIGHT = 480;
-
         public const string WINDOW_TITLE = "Application";
+#if DEBUG
+        private Vector2u oldWindowSize;
+#endif
 
-        static Dictionary<Keyboard.Key, bool> keyStates = new Dictionary<Keyboard.Key, bool>();
+        private static Dictionary<Keyboard.Key, bool> keyStates = new();
 
-        ManagerUI managerUI;
+        private ManagerUI managerUI;
 
-        // курсоры это задел на будущее для интерфейса
-        Cursor cursorArrow = new Cursor(Cursor.CursorType.Arrow);
-        Cursor cursorHand = new Cursor(Cursor.CursorType.Hand);
-        Cursor cursorSizeHorizontal = new Cursor(Cursor.CursorType.SizeHorizontal);
+        private bool isHoldingLeftButton;
+        private bool isHoldingRightButton;
+        private bool isDraggingVerticalBar;
+        private bool isDraggingHorizontalBar;
 
-        bool IsDraggingLeft;
-        bool IsDraggingRight;
-        bool IsDraggingVerticalBar;
-
-        public App() : base(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, WINDOW_TITLE, new Color(128, 128, 128))
-        {
-        }
+        public App() : base(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, WINDOW_TITLE, new Color(128, 128, 128)) {}
 
         public override void LoadContent()
         {
@@ -42,23 +39,35 @@ namespace SFML
 
         public override void Initialize()
         {
+#if DEBUG
+            oldWindowSize = Window.Size;
+#endif
+            InitializeKeyStates();
+            InitializeRandomColor();
+            managerUI.canvas.LoadImage();
+            InitializeEventHandlers();
+        }
+
+        private void InitializeKeyStates()
+        {
             keyStates[Keyboard.Key.W] = false;
             keyStates[Keyboard.Key.S] = false;
             keyStates[Keyboard.Key.A] = false;
             keyStates[Keyboard.Key.D] = false;
+        }
 
-            
-
-            IsDraggingLeft = false;
-
+        private void InitializeRandomColor()
+        {
+            managerUI.palette.AddColor(Color.Transparent);
             for (int i = 0; i < 10; i++)
             {
                 var rand = new Random();
                 managerUI.palette.AddColor(new Color((byte)rand.NextInt64(0, 255), (byte)rand.NextInt64(0, 255), (byte)rand.NextInt64(0, 255)));
             }
+        }
 
-            managerUI.canvas.LoadImage();
-
+        private void InitializeEventHandlers()
+        {
             Window.Resized += OnWindowResized;
             Window.MouseButtonPressed += OnMouseBtnPressed;
             Window.MouseButtonReleased += OnMouseBtnReleased;
@@ -72,17 +81,13 @@ namespace SFML
         private void OnKeyPressed(object sender, KeyEventArgs e)
         {
             if (keyStates.ContainsKey(e.Code))
-            {
                 keyStates[e.Code] = true;
-            }
         }
         
         private void OnKeyReleased(object sender, KeyEventArgs e)
         {
             if (keyStates.ContainsKey(e.Code))
-            {
                 keyStates[e.Code] = false;
-            }
         }
 
         private void OnMouseWheelScrolled(object sender, MouseWheelScrollEventArgs e)
@@ -116,99 +121,113 @@ namespace SFML
         {
             if (e.Button == Mouse.Button.Left)
             {
-                IsDraggingLeft = true;
-
-                Vector2f bSize = managerUI.vBorder.Size;
-                Vector2f bPos = managerUI.vBorder.Position;
-                if (e.X >= bPos.X && e.X <= bPos.X + bSize.X)
-                    IsDraggingVerticalBar = true;
-
-                Vector2f BtnPos = managerUI.palette.AddBtnHitbox.Position;
-                Vector2f BtnSize = managerUI.palette.AddBtnHitbox.Size;
-                if (e.X >= BtnPos.X && e.X <= BtnPos.X + BtnSize.X && e.Y >= BtnPos.Y && e.Y <= BtnPos.Y + BtnSize.Y && e.Y < managerUI.hBorderLastPos)
-                {
-                    byte[] args = managerUI.palette.TransformClipboard();
-                    if (args.Length == 4)
-                        managerUI.palette.AddColor(new Color(args[0], args[1], args[2], args[3]));
-                    if (args.Length == 3)
-                        managerUI.palette.AddColor(new Color(args[0], args[1], args[2]));
-                }
-
-                if (e.Y < managerUI.hBorderLastPos)
-                {
-                    managerUI.palette.CheckForColor(e, true);
-                    Update(this.GameTime);
-                }
-
-                if (e.X > managerUI.vBorderLastPos + ManagerUI.BorderSize)
-                    PaintPixel(e.X, e.Y, true);
+                isHoldingLeftButton = true;
+                HandleLeftMouseBtnPressed(e);
             }
 
             if (e.Button == Mouse.Button.Right)
             {
-                IsDraggingRight = true;
-
-                if (e.X > managerUI.vBorderLastPos + ManagerUI.BorderSize)
-                    PaintPixel(e.X, e.Y, false);
-                if (e.Y < managerUI.hBorderLastPos)
-                {
-                    managerUI.palette.CheckForColor(e, false);
-                    Update(this.GameTime);
-                }
+                isHoldingRightButton = true;
+                HandleRightMouseBtnPressed(e);
             }
 
             if (e.Button == Mouse.Button.Middle)
                 managerUI.palette.CheckForDeleteItems(e);
         }
+
+        private void HandleLeftMouseBtnPressed(MouseButtonEventArgs e)
+        {
+            if (IsMouseOverVerticalBorder(e))
+                isDraggingVerticalBar = true;
+
+            if (IsMouseOverPaletteAddButton(e))
+                AddColorFromClipboard();
+
+            if (IsMouseOverPalette(e))
+                managerUI.palette.CheckForColor(e, true);
+
+            if (IsMouseOverCanvas(e.X, e.Y))
+                PaintPixel(e.X, e.Y, true);
+        }
+
+        private bool IsMouseOverVerticalBorder(MouseButtonEventArgs e)
+        {
+            Vector2f pos = managerUI.vBorder.Position;
+            Vector2f size = managerUI.vBorder.Size;
+            return e.X >= pos.X && e.X <= pos.X + size.X;
+        }
+
+        private bool IsMouseOverPaletteAddButton(MouseButtonEventArgs e)
+        {
+            Vector2f BtnPos = managerUI.palette.AddBtnHitbox.Position;
+            Vector2f BtnSize = managerUI.palette.AddBtnHitbox.Size;
+            return e.X >= BtnPos.X && e.X <= BtnPos.X + BtnSize.X && e.Y >= BtnPos.Y && e.Y <= BtnPos.Y + BtnSize.Y && e.Y < managerUI.hBorderLastPos;
+        }
+
+        private void AddColorFromClipboard()
+        {
+            byte[] args = managerUI.palette.TransformClipboard();
+            if (args.Length == 4)
+                managerUI.palette.AddColor(new Color(args[0], args[1], args[2], args[3]));
+            if (args.Length == 3)
+                managerUI.palette.AddColor(new Color(args[0], args[1], args[2]));
+        }
+
+        private bool IsMouseOverPalette(MouseButtonEventArgs e)
+        {
+            return e.Y < managerUI.hBorderLastPos && e.X < managerUI.vBorderLastPos;
+        }
         
+        private bool IsMouseOverCanvas(int x, int y)
+        {
+            return x > managerUI.vBorderLastPos + ManagerUI.BorderSize;
+        }
+
+        private void HandleRightMouseBtnPressed(MouseButtonEventArgs e)
+        {
+            if (IsMouseOverCanvas(e.X, e.Y))
+                PaintPixel(e.X, e.Y, false);
+            if (IsMouseOverPalette(e))
+                managerUI.palette.CheckForColor(e, false);
+        }
+
         private void OnMouseBtnReleased(object sender, MouseButtonEventArgs e)
         {
             if (e.Button == Mouse.Button.Left)
             {
-                IsDraggingLeft = false;
-                IsDraggingVerticalBar = false;
+                isHoldingLeftButton = false;
+                isDraggingVerticalBar = false;
+                isDraggingHorizontalBar = false;
             }
             if (e.Button == Mouse.Button.Right)
-            {
-                IsDraggingRight = false;
-            }
+                isHoldingRightButton = false;
         }
 
         private void OnMouseMoved(object sender, MouseMoveEventArgs e)
         {
-            if (IsDraggingLeft && IsDraggingVerticalBar)
+            if (isHoldingLeftButton && isDraggingVerticalBar)
                 if (e.X > 10 && e.X < Window.Size.X - 10)
-                {
                     managerUI.RecalcVBorderLastPos(e.X);
-                    managerUI.Update();
-                }
-            if (IsDraggingLeft)
-            {
-                if (e.X > managerUI.vBorderLastPos + ManagerUI.BorderSize)
-                    PaintPixel(e.X, e.Y, true);
-            }
-            if (IsDraggingRight)
-            {
-                if (e.X > managerUI.vBorderLastPos + ManagerUI.BorderSize)
-                    PaintPixel(e.X, e.Y, false);
-            }
+            if (isHoldingLeftButton && IsMouseOverCanvas(e.X, e.Y))
+                PaintPixel(e.X, e.Y, true);
+            if (isHoldingRightButton && IsMouseOverCanvas(e.X, e.Y))
+                PaintPixel(e.X, e.Y, false);
         }
 
         private void OnWindowResized(object sender, SizeEventArgs e)
         {
-#if DEBUG
-            Console.WriteLine($"Размер окна изменён: {e.Width}, {e.Height}");
-#endif
             Window.SetView(new View(new FloatRect(0, 0, e.Width, e.Height)));
-            
-            managerUI.UpdatedSize(e);
+#if DEBUG
+            DebugUtility.Log($"Размер окна изменён: {oldWindowSize.X}, {oldWindowSize.Y} => {e.Width}, {e.Height}");
+            oldWindowSize = Window.Size;
+#endif
         }
 
         public void PaintPixel(int mouseX, int mouseY, bool isMainColor)
         {
-            var cPos = managerUI.canvas.backgroundLayer.Position;
-            var cSize = new Vector2f(managerUI.canvas.backgroundLayer.Size.X * managerUI.canvas.backgroundLayer.Scale.X, managerUI.canvas.backgroundLayer.Size.Y * managerUI.canvas.backgroundLayer.Scale.Y);
-            var cScale = managerUI.canvas.backgroundLayer.Scale;
+            var cPos = managerUI.canvas.BackgroundLayer.Position;
+            var cSize = new Vector2f(managerUI.canvas.BackgroundLayer.Size.X * managerUI.canvas.BackgroundLayer.Scale.X, managerUI.canvas.BackgroundLayer.Size.Y * managerUI.canvas.BackgroundLayer.Scale.Y);
+            var cScale = managerUI.canvas.BackgroundLayer.Scale;
 
             if (mouseX >= cPos.X && mouseX <= cPos.X + cSize.X && mouseY >= cPos.Y && mouseY <= cPos.Y + cSize.Y)
             {
@@ -220,16 +239,9 @@ namespace SFML
                 uint pixelX = (uint)Math.Clamp(localX, 0, managerUI.canvas.Size.X - 1);
                 uint pixelY = (uint)Math.Clamp(localY, 0, managerUI.canvas.Size.Y - 1);
 
-                // Устанавливаем цвет пикселя
-                if (isMainColor)
-                    managerUI.canvas.SetPixelColor(pixelX, pixelY, ManagerUI.ActiveMainColor);
-                if (!isMainColor)
-                    managerUI.canvas.SetPixelColor(pixelX, pixelY, ManagerUI.ActiveSecondColor);
+                managerUI.canvas.SetPixelColor(pixelX, pixelY, isMainColor ? ManagerUI.ActiveMainColor : ManagerUI.ActiveSecondColor);
             }
         }
-
-
-
 
         static void UpdateCamera()
         {
@@ -238,21 +250,13 @@ namespace SFML
             float finalSpeed = baseSpeed * speedMultiplier;
 
             if (keyStates[Keyboard.Key.W])
-            {
                 CanvasCam.OffsetPosY += finalSpeed;
-            }
             if (keyStates[Keyboard.Key.S])
-            {
                 CanvasCam.OffsetPosY -= finalSpeed;
-            }
             if (keyStates[Keyboard.Key.A])
-            {
                 CanvasCam.OffsetPosX += finalSpeed;
-            }
             if (keyStates[Keyboard.Key.D])
-            {
                 CanvasCam.OffsetPosX -= finalSpeed;
-            }
         }
 
         public override void Update(GameTime gameTime)

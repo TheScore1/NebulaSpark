@@ -58,14 +58,15 @@ namespace SFML
             if (index < 0 || index >= savedColors.Count)
             {
 #if DEBUG
-                Console.WriteLine($"Некорректный индекс для удаления цвета: index = {index}");
+                DebugUtility.Log($"Некорректный индекс для удаления цвета: [{index}]");
 #endif
                 return;
             }
-#if DEBUG
-            Console.WriteLine($"Удалён цвет с позиции {index}");
-#endif
+            var deletedColor = savedColors[index].Color;
             savedColors.RemoveAt(index);
+#if DEBUG
+            DebugUtility.Log($"Удалён цвет: [{index}] {deletedColor}");
+#endif
         }
 
         public void CheckForDeleteItems(MouseButtonEventArgs e)
@@ -90,14 +91,14 @@ namespace SFML
                     {
                         ManagerUI.ActiveMainColor = item.Color;
 #if DEBUG
-                        Console.WriteLine($"Задан основной цвет: {item.Color}");
+                        DebugUtility.Log($"Задан основной цвет: {item.Color}");
 #endif
                     }
                     else
                     {
                         ManagerUI.ActiveSecondColor = item.Color;
 #if DEBUG
-                        Console.WriteLine($"Задан побочный цвет: {item.Color}");
+                        DebugUtility.Log($"Задан побочный цвет: {item.Color}");
 #endif
                     }
                     break;
@@ -129,7 +130,7 @@ namespace SFML
             {
                 string text = Clipboard.Contents;
 #if DEBUG
-                Console.WriteLine(text);
+                DebugUtility.Log(text);
 #endif
                 string[] textArr = text.Split("(")[1].Split(")")[0].Trim().Split(",");
                 byte[] byteArr = new byte[textArr.Length];
@@ -148,8 +149,8 @@ namespace SFML
             catch (Exception ex)
             {
 #if DEBUG
-                Console.WriteLine("Буфер обмена не корректный: ");
-                Console.WriteLine(ex.Message);
+                DebugUtility.Log("Буфер обмена не корректный: ");
+                DebugUtility.Log(ex.Message);
 #endif
                 return new byte[1];
             }
@@ -198,50 +199,44 @@ namespace SFML
                 OutlineColor = Color.Black,
                 OutlineThickness = -3
             };
-            var backColorEven = new Color(51, 18, 73);
-            var backColorOdd = new Color(217, 217, 220);
+
+            // Возможно изменить всё отображение на отображение прозрачной текстуры с вкладом цвета,
+            // если прозрачную текстуру сделать ярче и более однотонной
             if (isAlpha && Color.A == 0)
-            {
-                Image img = new Image(4, 4); 
-                for (int i = 0; i < img.Size.X; i++)
-                    for (int j = 0; j < img.Size.Y; j++)
-                    {
-                        if (j % 2 == 0)
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                        }
-                        else
-                        {
-                            if (i % 2 == 0)
-                                img.SetPixel((uint)i, (uint)j, backColorOdd);
-                            else
-                                img.SetPixel((uint)i, (uint)j, backColorEven);
-                        }
-                    }
-                Shape.Texture = new Texture(img);
-            }
-            else if (isAlpha == true)
-                Shape.FillColor = ColorWithAlpha(color);
+                Shape.Texture = CreateTransparentTexture();
+            else if (isAlpha)
+                Shape.FillColor = ColorWithAlpha(Color);
             else
                 Shape.FillColor = Color;
+        }
+
+        private Texture CreateTransparentTexture()
+        {
+            var backColorEven = new Color(51, 18, 73);
+            var backColorOdd = new Color(217, 217, 220);
+            Image img = new Image(4, 4);
+            for (int i = 0; i < img.Size.X; i++)
+                for (int j = 0; j < img.Size.Y; j++)
+                {
+                    if (j % 2 == 0)
+                        img.SetPixel((uint)i, (uint)j, i % 2 == 0 ? backColorEven : backColorOdd);
+                    else
+                        img.SetPixel((uint)i, (uint)j, i % 2 == 0 ? backColorOdd : backColorEven);
+                }
+            return new Texture(img);
         }
 
         public static Color ColorWithAlpha(Color color)
         {
             byte alpha = color.A;
             if (alpha == 0)
-            {
                 return Color.Transparent;
-            }
             else
             {
                 byte red = (byte)((color.R * alpha + 255 * (255 - alpha)) / 255);
                 byte green = (byte)((color.G * alpha + 255 * (255 - alpha)) / 255);
                 byte blue = (byte)((color.B * alpha + 255 * (255 - alpha)) / 255);
-                return new Color(red, green, blue); // 255 * (255 - alpha) / 255 это вклад белого фона по умолчанию
+                return new Color(red, green, blue); // 255 * (255 - alpha) / 255 вклад белого фона по умолчанию
             }
         }
 
