@@ -20,7 +20,7 @@ namespace SFML
 
         public void Draw(GameLoop gameLoop)
         {
-            background.FillColor = new Color(255, 255, 255);
+            background.FillColor = new SFML.Graphics.Color(255, 255, 255);
             gameLoop.Window.Draw(background);
         }
     }

@@ -5,13 +5,13 @@ namespace SFML
 {
     public static class TweaksUI
     {
-        public static Color BarsColors = Color.White;
-        public static Color OutlineColor = Color.Black;
+        public static SFML.Graphics.Color BarsColors = SFML.Graphics.Color.White;
+        public static SFML.Graphics.Color OutlineColor = SFML.Graphics.Color.Black;
         public static int OutlineThickness = -6;
 
         // курсоры это задел на будущее для интерфейса
-        private static Cursor cursorArrow = new Cursor(Cursor.CursorType.Arrow);
-        private static Cursor cursorHand = new Cursor(Cursor.CursorType.Hand);
-        private static Cursor cursorSizeHorizontal = new Cursor(Cursor.CursorType.SizeHorizontal);
+        private static SFML.Window.Cursor cursorArrow = new SFML.Window.Cursor(SFML.Window.Cursor.CursorType.Arrow);
+        private static SFML.Window.Cursor cursorHand = new SFML.Window.Cursor(SFML.Window.Cursor.CursorType.Hand);
+        private static SFML.Window.Cursor cursorSizeHorizontal = new SFML.Window.Cursor(SFML.Window.Cursor.CursorType.SizeHorizontal);
     }
 }
