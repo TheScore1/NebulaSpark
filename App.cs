@@ -26,7 +26,7 @@ namespace SFML
         private bool isDraggingVerticalBar;
         private bool isDraggingHorizontalBar;
 
-        public App() : base(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT, WINDOW_TITLE, new Color(128, 128, 128)) {}
+        public App(IntPtr hWnd) : base(hWnd, new SFML.Graphics.Color(128, 128, 128)) { }
 
         public override void LoadContent()
         {
@@ -58,11 +58,11 @@ namespace SFML
 
         private void InitializeRandomColor()
         {
-            managerUI.palette.AddColor(Color.Transparent);
+            managerUI.palette.AddColor(SFML.Graphics.Color.Transparent);
             for (int i = 0; i < 10; i++)
             {
                 var rand = new Random();
-                managerUI.palette.AddColor(new Color((byte)rand.NextInt64(0, 255), (byte)rand.NextInt64(0, 255), (byte)rand.NextInt64(0, 255)));
+                managerUI.palette.AddColor(new SFML.Graphics.Color((byte)rand.NextInt64(0, 255), (byte)rand.NextInt64(0, 255), (byte)rand.NextInt64(0, 255)));
             }
         }
 
@@ -75,16 +75,15 @@ namespace SFML
             Window.MouseWheelScrolled += OnMouseWheelScrolled;
             Window.KeyPressed += OnKeyPressed;
             Window.KeyReleased += OnKeyReleased;
-            Window.Closed += OnWindowClosed;
         }
 
-        private void OnKeyPressed(object sender, KeyEventArgs e)
+        private void OnKeyPressed(object sender, SFML.Window.KeyEventArgs e)
         {
             if (keyStates.ContainsKey(e.Code))
                 keyStates[e.Code] = true;
         }
         
-        private void OnKeyReleased(object sender, KeyEventArgs e)
+        private void OnKeyReleased(object sender, SFML.Window.KeyEventArgs e)
         {
             if (keyStates.ContainsKey(e.Code))
                 keyStates[e.Code] = false;
@@ -168,9 +167,9 @@ namespace SFML
         {
             byte[] args = managerUI.palette.TransformClipboard();
             if (args.Length == 4)
-                managerUI.palette.AddColor(new Color(args[0], args[1], args[2], args[3]));
+                managerUI.palette.AddColor(new SFML.Graphics.Color(args[0], args[1], args[2], args[3]));
             if (args.Length == 3)
-                managerUI.palette.AddColor(new Color(args[0], args[1], args[2]));
+                managerUI.palette.AddColor(new SFML.Graphics.Color(args[0], args[1], args[2]));
         }
 
         private bool IsMouseOverPalette(MouseButtonEventArgs e)
@@ -216,7 +215,7 @@ namespace SFML
 
         private void OnWindowResized(object sender, SizeEventArgs e)
         {
-            Window.SetView(new View(new FloatRect(0, 0, e.Width, e.Height)));
+            Window.SetView(new SFML.Graphics.View(new FloatRect(0, 0, e.Width, e.Height)));
 #if DEBUG
             DebugUtility.Log($"Размер окна изменён: {oldWindowSize.X}, {oldWindowSize.Y} => {e.Width}, {e.Height}");
             oldWindowSize = Window.Size;
@@ -269,11 +268,11 @@ namespace SFML
         {
             managerUI.Draw();
 #if DEBUG
-            DebugUtility.DrawPerformanceData(this, Color.White);
+            DebugUtility.DrawPerformanceData(this, SFML.Graphics.Color.White);
 #endif
         }
 
-        private void OnWindowClosed(object sender, EventArgs e)
+        public void OnWindowClosed(object sender, EventArgs e)
         {
             managerUI.canvas.ExportImage();
             Window.Close();

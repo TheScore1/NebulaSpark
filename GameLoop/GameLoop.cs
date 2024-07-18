@@ -2,7 +2,6 @@
 using SFML.System;
 using SFML.Window;
 using System;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Application
 {
@@ -17,13 +16,13 @@ namespace Application
         public GameTime GameTime
         { get; protected set; }
 
-        public Color WindowClearColor
+        public SFML.Graphics.Color WindowClearColor
         { get; protected set; }
 
-        protected GameLoop(uint windowWidth, uint windowHeight, string windowTitle, Color windowClearColor)
+        protected GameLoop(IntPtr hWnd, SFML.Graphics.Color windowClearColor)
         {
             this.WindowClearColor = windowClearColor;
-            this.Window = new RenderWindow(new VideoMode(windowWidth, windowHeight), windowTitle); // Styles.None
+            this.Window = new RenderWindow(hWnd);
             this.GameTime = new GameTime();
             Window.Closed += WindowClosed;
         }

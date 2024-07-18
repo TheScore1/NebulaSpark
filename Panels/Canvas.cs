@@ -9,24 +9,24 @@ namespace SFML
     {
         public RectangleShape BackgroundLayer { get; }
         public RectangleShape DrawnLayer { get; }
-        private Image background;
-        private Image drawnLayerImage;
+        private SFML.Graphics.Image background;
+        private SFML.Graphics.Image drawnLayerImage;
 
-        private readonly Color backColorEven;
-        private readonly Color backColorOdd;
+        private readonly SFML.Graphics.Color backColorEven;
+        private readonly SFML.Graphics.Color backColorOdd;
 
         public static int OffsetBounds { get; private set; }
         public Vector2f Size { get; }
 
         public Canvas(uint width, uint height)
         {
-            backColorEven = new Color(51, 18, 73);
-            backColorOdd = new Color(217, 217, 220);
+            backColorEven = new SFML.Graphics.Color(51, 18, 73);
+            backColorOdd = new SFML.Graphics.Color(217, 217, 220);
             Size = new Vector2f(width, height);
             OffsetBounds = 10;
 
             background = CreateBackgroundImage(width, height);
-            drawnLayerImage = new Image(width, height, Color.Transparent);
+            drawnLayerImage = new SFML.Graphics.Image(width, height, SFML.Graphics.Color.Transparent);
 
             BackgroundLayer = new RectangleShape(new Vector2f(width, height))
             {
@@ -41,16 +41,16 @@ namespace SFML
 #endif
         }
 
-        private Image CreateBackgroundImage(uint width, uint height)
+        private SFML.Graphics.Image CreateBackgroundImage(uint width, uint height)
         {
-            var img = new Image(width, height);
+            var img = new SFML.Graphics.Image(width, height);
             for (uint i = 0; i < width; i++)
                 for (uint j = 0; j < height; j++)
                     img.SetPixel(i, j, GetPixelColor(i, j));
             return img;
         }
 
-        private Color GetPixelColor(uint x, uint y)
+        private SFML.Graphics.Color GetPixelColor(uint x, uint y)
         {
             if (y % 2 == 0)
                 return x % 2 == 0 ? backColorEven : backColorOdd;
@@ -58,12 +58,12 @@ namespace SFML
                 return x % 2 == 0 ? backColorOdd : backColorEven;
         }
 
-        public void SetPixelColor(uint x, uint y, Color color)
+        public void SetPixelColor(uint x, uint y, SFML.Graphics.Color color)
         {
             if (x < Size.X && y < Size.Y)
             {
 #if DEBUG
-                DebugUtility.Log($"[{x},{y}] Пиксель установлен");
+                //DebugUtility.Log($"[{x},{y}] Пиксель установлен");
 #endif
                 drawnLayerImage.SetPixel(x, y, color);
                 DrawnLayer.Texture.Update(drawnLayerImage);
@@ -73,7 +73,7 @@ namespace SFML
         public void ExportImage(string filePath = "Autosave.png")
         {
             Texture texture = DrawnLayer.Texture;
-            Image exportImage = texture.CopyToImage();
+            SFML.Graphics.Image exportImage = texture.CopyToImage();
             bool success = exportImage.SaveToFile(filePath);
 #if DEBUG
             DebugUtility.Log(success
@@ -86,7 +86,7 @@ namespace SFML
         {
             if (File.Exists(filePath))
             {
-                drawnLayerImage = new Image(filePath);
+                drawnLayerImage = new SFML.Graphics.Image(filePath);
                 DrawnLayer.Texture.Update(drawnLayerImage);
 #if DEBUG
                 DebugUtility.Log($"Изображение успешно загружено из: {filePath}");

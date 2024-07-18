@@ -27,11 +27,6 @@ namespace Application
         public float TotalTimeElapsed
         { get; private set; }
 
-        public GameTime()
-        {
-
-        }
-
         public void Update(float deltaTime, float totalTimeElapsed)
         {
             _deltaTime = deltaTime;

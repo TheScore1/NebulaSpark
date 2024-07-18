@@ -2,13 +2,14 @@
 
   <PropertyGroup>
     <OutputType>Winexe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UseWindowsForms>True</UseWindowsForms>
   </PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-		<OutputType></OutputType>
+		<OutputType>Winexe</OutputType>
 	</PropertyGroup>
 	
   <ItemGroup>

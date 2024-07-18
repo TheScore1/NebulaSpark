@@ -113,7 +113,7 @@ namespace SFML
             return e.X >= pos.X && e.X <= pos.X + size.X && e.Y >= pos.Y && e.Y <= pos.Y + size.Y;
         }
 
-        public void AddColor(Color color)
+        public void AddColor(SFML.Graphics.Color color)
         {
             if (savedColors.Count >= MaxColors)
             {
@@ -128,7 +128,7 @@ namespace SFML
         {
             try
             {
-                string text = Clipboard.Contents;
+                string text = SFML.Window.Clipboard.Contents;
 #if DEBUG
                 DebugUtility.Log(text);
 #endif
@@ -186,17 +186,17 @@ namespace SFML
 
     public class PaletteItem
     {
-        public Color Color { get; }
+        public SFML.Graphics.Color Color { get; }
         public bool IsAlpha { get; }
         public RectangleShape Shape { get; }
 
-        public PaletteItem(Color color, Vector2f shapeSize, bool isAlpha = false)
+        public PaletteItem(SFML.Graphics.Color color, Vector2f shapeSize, bool isAlpha = false)
         {
             IsAlpha = isAlpha;
             Color = color;
             Shape = new RectangleShape(shapeSize)
             {
-                OutlineColor = Color.Black,
+                OutlineColor = SFML.Graphics.Color.Black,
                 OutlineThickness = -3
             };
 
@@ -205,16 +205,16 @@ namespace SFML
             if (isAlpha && Color.A == 0)
                 Shape.Texture = CreateTransparentTexture();
             else if (isAlpha)
-                Shape.FillColor = ColorWithAlpha(Color);
+                Shape.FillColor = ColorWithAlpha(color);
             else
                 Shape.FillColor = Color;
         }
 
         private Texture CreateTransparentTexture()
         {
-            var backColorEven = new Color(51, 18, 73);
-            var backColorOdd = new Color(217, 217, 220);
-            Image img = new Image(4, 4);
+            var backColorEven = new SFML.Graphics.Color(51, 18, 73);
+            var backColorOdd = new SFML.Graphics.Color(217, 217, 220);
+            SFML.Graphics.Image img = new SFML.Graphics.Image(4, 4);
             for (int i = 0; i < img.Size.X; i++)
                 for (int j = 0; j < img.Size.Y; j++)
                 {
@@ -226,17 +226,17 @@ namespace SFML
             return new Texture(img);
         }
 
-        public static Color ColorWithAlpha(Color color)
+        public static SFML.Graphics.Color ColorWithAlpha(SFML.Graphics.Color color)
         {
             byte alpha = color.A;
             if (alpha == 0)
-                return Color.Transparent;
+                return SFML.Graphics.Color.Transparent;
             else
             {
                 byte red = (byte)((color.R * alpha + 255 * (255 - alpha)) / 255);
                 byte green = (byte)((color.G * alpha + 255 * (255 - alpha)) / 255);
                 byte blue = (byte)((color.B * alpha + 255 * (255 - alpha)) / 255);
-                return new Color(red, green, blue); // 255 * (255 - alpha) / 255 вклад белого фона по умолчанию
+                return new SFML.Graphics.Color(red, green, blue); // 255 * (255 - alpha) / 255 вклад белого фона по умолчанию
             }
         }
 
