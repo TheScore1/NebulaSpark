@@ -18,8 +18,8 @@ namespace SFMLApp
         const string ContentWndClassName = "Content window (child)";
         const int MinContentWidth = 300;
         const int MinContentHeight = 300;
-        const int MaxContentWidth = 1500;
-        const int MaxContentHeight = 1200;
+        const int MaxContentWidth = 2560;
+        const int MaxContentHeight = 1440;
 
         static volatile IntPtr g_hMainWnd = IntPtr.Zero;
         static volatile IntPtr g_hContentWnd = IntPtr.Zero;

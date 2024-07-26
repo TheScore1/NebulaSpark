@@ -4,14 +4,19 @@ using SFML.Graphics;
 using Application;
 using SFML.Window;
 using static System.Formats.Asn1.AsnWriter;
+using static System.Windows.Forms.AxHost;
+using System;
 
 namespace SFML
 {
     public class Palette
     {
+        RectangleShape palettePanel;
+
         private List<PaletteItem> savedColors;
         private const int MaxColors = 20;
-        private static readonly Vector2f DefaultPosition = new Vector2f(3f, 3f);
+        public Vector2f DefaultPosition = new Vector2f(3f, 3f);
+        public Vector2f CurrentPosition;
         public static readonly Vector2f DefaultShapeSize = new Vector2f(48f, 48f);
 
         private Vector2f itemShapeSize;
@@ -30,18 +35,41 @@ namespace SFML
             }
         }
 
+        public int SizeOfRow;
+        public int SizeOfColumn;
+
+        private Texture ActiveMainItemTexture;
+        private RectangleShape ActiveMainItemOverlay;
+        private Texture ActiveSecondItemTexture;
+        private RectangleShape ActiveSecondItemOverlay;
+
         public RectangleShape AddBtnHitbox { get; private set; }
         private Texture AddBtnTexture;
         private Sprite AddBtnSprite;
 
-        public Palette()
+        public Palette(RectangleShape PalettePanel)
         {
+            palettePanel = PalettePanel;
             savedColors = new List<PaletteItem>();
+            CurrentPosition = DefaultPosition;
             itemShapeSize = DefaultShapeSize;
         }
 
         public void LoadContent()
         {
+            ActiveMainItemTexture = new Texture("sprites/active_main.png");
+            ActiveMainItemOverlay = new RectangleShape(itemShapeSize)
+            {
+                Texture = ActiveMainItemTexture,
+                Position = DefaultPosition
+            };
+            ActiveSecondItemTexture = new Texture("sprites/active_second.png");
+            ActiveSecondItemOverlay = new RectangleShape(itemShapeSize)
+            {
+                Texture = ActiveSecondItemTexture,
+                Position = DefaultPosition
+            };
+
             AddBtnTexture = new Texture("sprites/add_item.png");
             AddBtnSprite = new Sprite(AddBtnTexture)
             {
@@ -53,6 +81,28 @@ namespace SFML
             };
         }
 
+        public void ApplyActiveStyle(PaletteItem item)
+        {
+            item.Shape.OutlineColor = TweaksUI.PaletteItemOutlineActiveColor;
+            item.Shape.OutlineThickness = TweaksUI.PaletteItemOutlineThicknessActiveColor;
+        }
+
+        public void ResetStyle(PaletteItem item)
+        {
+            item.Shape.OutlineColor = TweaksUI.PaletteItemOutlineColor;
+            item.Shape.OutlineThickness = TweaksUI.PaletteItemOutlineThickness;
+        }
+
+        public void UpdateColorItemStyles()
+        {
+            foreach (var color in savedColors)
+                ResetStyle(color);
+            if (ManagerUI.IdMainColor > -1)
+                ApplyActiveStyle(savedColors[ManagerUI.IdMainColor]);
+            if (ManagerUI.IdSecondColor > -1)
+                ApplyActiveStyle(savedColors[ManagerUI.IdSecondColor]);
+        }
+
         public void DeleteColor(int index)
         {
             if (index < 0 || index >= savedColors.Count)
@@ -62,6 +112,19 @@ namespace SFML
 #endif
                 return;
             }
+            // если удаляется активный в палитре элемент, убираем привязку к ней
+            if (index == ManagerUI.IdMainColor)
+                ManagerUI.IdMainColor = -1;
+            if (index == ManagerUI.IdSecondColor)
+                ManagerUI.IdSecondColor = -1;
+
+            // если удаляется любой элемент до id, id активных цветов должен уменьшится, съехать влево
+            // учитывая место удалённого
+            if (index < ManagerUI.IdMainColor)
+                ManagerUI.IdMainColor -= 1;
+            if (index < ManagerUI.IdSecondColor)
+                ManagerUI.IdSecondColor -= 1;
+
             var deletedColor = savedColors[index].Color;
             savedColors.RemoveAt(index);
 #if DEBUG
@@ -83,24 +146,29 @@ namespace SFML
 
         public void CheckForColor(MouseButtonEventArgs e, bool isMain)
         {
-            foreach (var item in savedColors)
+            for (int i = 0;i < savedColors.Count; i++)
             {
-                if (IsMouseOverShape(e, item.Shape))
+                if (IsMouseOverShape(e, savedColors[i].Shape))
                 {
                     if (isMain)
                     {
-                        ManagerUI.ActiveMainColor = item.Color;
+                        ManagerUI.MainColor = savedColors[i].Color;
+                        ManagerUI.IdMainColor = i;
+                        ActiveMainItemOverlay.Position = savedColors[i].Shape.Position;
 #if DEBUG
-                        DebugUtility.Log($"Задан основной цвет: {item.Color}");
+                        DebugUtility.Log($"Задан основной цвет с [id]: [{i}] {savedColors[i].Color}");
 #endif
                     }
                     else
                     {
-                        ManagerUI.ActiveSecondColor = item.Color;
+                        ManagerUI.SecondColor = savedColors[i].Color;
+                        ManagerUI.IdSecondColor = i;
+                        ActiveSecondItemOverlay.Position = savedColors[i].Shape.Position;
 #if DEBUG
-                        DebugUtility.Log($"Задан побочный цвет: {item.Color}");
+                        DebugUtility.Log($"Задан побочный цвет с [id]: [{i}] {savedColors[i].Color}");
 #endif
                     }
+                    UpdateColorItemStyles(); // чтобы корректно были отображены активные цвета, если они есть в палитре
                     break;
                 }
             }
@@ -117,7 +185,9 @@ namespace SFML
         {
             if (savedColors.Count >= MaxColors)
             {
-                Console.WriteLine("Превышен лимит цветов в палитре");
+#if DEBUG
+                DebugUtility.Log("Попытка привысить лимит цветов в палитре");
+#endif
                 return;
             }
 
@@ -130,7 +200,7 @@ namespace SFML
             {
                 string text = SFML.Window.Clipboard.Contents;
 #if DEBUG
-                DebugUtility.Log(text);
+                DebugUtility.Log($"Импорт буфера обмена: {text}");
 #endif
                 string[] textArr = text.Split("(")[1].Split(")")[0].Trim().Split(",");
                 byte[] byteArr = new byte[textArr.Length];
@@ -156,37 +226,100 @@ namespace SFML
             }
         }
 
-        public void Draw(GameLoop gameLoop, RectangleShape palettePanel)
+        public void ChangeItemShapeSize(Vector2f size)
         {
-            int sizeOfRow = Math.Max(1, (int)Math.Floor((palettePanel.Size.X - DefaultPosition.X) / (itemShapeSize.X + 3)));
+            itemShapeSize = size;
+            for (int i = 0; i < savedColors.Count; i++)
+                savedColors[i].Shape.Size = size;
+            AddBtnHitbox.Size = size;
+            ActiveMainItemOverlay.Size = size;
+            ActiveSecondItemOverlay.Size = size;
+        }
+
+        public void ChangeItemPositions(Vector2f pos)
+        {
+            float paletteVisibleHeight = palettePanel.Position.Y + palettePanel.Size.Y;
+            var lenght = SizeOfColumn * (itemShapeSize.Y + 3) + DefaultPosition.Y;
+            if (pos.Y < DefaultPosition.Y && pos.Y > paletteVisibleHeight - lenght)
+                CurrentPosition = pos;
+            if (pos.Y < -lenght + paletteVisibleHeight)
+                CurrentPosition = new Vector2f(DefaultPosition.X, paletteVisibleHeight - lenght);
+            if (lenght <= paletteVisibleHeight)
+                CurrentPosition = DefaultPosition;
+        }
+
+        public void GetPixelColorAsMain(GameLoop gameLoop, int x, int y)
+        {
+            var window = gameLoop.Window;
+
+            SFML.Graphics.Texture screenTexture = new Texture(window.Size.X, window.Size.Y);
+            screenTexture.Update(window);
+            SFML.Graphics.Image screeshot = screenTexture.CopyToImage();
+            var tempColor = screeshot.GetPixel((uint)x, (uint)y);
+            ManagerUI.MainColor = tempColor;
+            if (ManagerUI.IdMainColor > -1)
+            {
+                savedColors[ManagerUI.IdMainColor].Color = tempColor;
+                savedColors[ManagerUI.IdMainColor].Shape.FillColor = tempColor;
+            }
+            UpdateColorItemStyles();
+        }
+
+        public void Update()
+        {
+            SizeOfRow = Math.Max(1, (int)Math.Floor((palettePanel.Size.X - CurrentPosition.X) / (itemShapeSize.X + 3)));
+            if (savedColors.Count != MaxColors)
+                SizeOfColumn = Math.Max(1, (int)Math.Ceiling((double)(savedColors.Count + 1) / SizeOfRow));
+            else
+                SizeOfColumn = Math.Max(1, (int)Math.Ceiling((double)(savedColors.Count) / SizeOfRow));
+            ChangeItemPositions(CurrentPosition);
+        }
+
+        public void Draw(GameLoop gameLoop)
+        {
             int row;
 
             for (int i = 0; i < savedColors.Count; i++)
             {
-                int column = i % sizeOfRow;
-                row = i / sizeOfRow;
+                int column = i % SizeOfRow;
+                row = i / SizeOfRow;
 
-                float xPosition = DefaultPosition.X + (itemShapeSize.X + 3) * column;
-                float yPosition = DefaultPosition.Y + (itemShapeSize.X + 3) * row;
+                float xPosition = CurrentPosition.X + (itemShapeSize.X + 3) * column;
+                float yPosition = CurrentPosition.Y + (itemShapeSize.X + 3) * row;
 
                 savedColors[i].Shape.Position = new Vector2f(xPosition, yPosition);
                 savedColors[i].Draw(gameLoop);
             }
 
-            int addBtnColumn = savedColors.Count % sizeOfRow;
-            int addBtnRow = savedColors.Count / sizeOfRow;
-            AddBtnSprite.Position = new Vector2f(
-                DefaultPosition.X + (itemShapeSize.X + 3) * addBtnColumn,
-                DefaultPosition.Y + (itemShapeSize.X + 3) * addBtnRow);
-            AddBtnSprite.Scale = itemShapeSize / 32;
-            AddBtnHitbox.Position = AddBtnSprite.Position;
-            gameLoop.Window.Draw(AddBtnSprite);
+            if (ManagerUI.IdMainColor > -1)
+            {
+                ActiveMainItemOverlay.Position = savedColors[ManagerUI.IdMainColor].Shape.Position;
+                gameLoop.Window.Draw(ActiveMainItemOverlay);
+            }
+            if (ManagerUI.IdSecondColor > -1)
+            {
+                ActiveSecondItemOverlay.Position = savedColors[ManagerUI.IdSecondColor].Shape.Position;
+                gameLoop.Window.Draw(ActiveSecondItemOverlay);
+            }
+
+            if (savedColors.Count != MaxColors)
+            {
+                int addBtnColumn = savedColors.Count % SizeOfRow;
+                int addBtnRow = savedColors.Count / SizeOfRow;
+                AddBtnSprite.Position = new Vector2f(
+                    CurrentPosition.X + (itemShapeSize.X + 3) * addBtnColumn,
+                    CurrentPosition.Y + (itemShapeSize.X + 3) * addBtnRow);
+                AddBtnSprite.Scale = itemShapeSize / 32;
+                AddBtnHitbox.Position = AddBtnSprite.Position;
+
+                gameLoop.Window.Draw(AddBtnSprite);
+            }
         }
     }
 
     public class PaletteItem
     {
-        public SFML.Graphics.Color Color { get; }
+        public SFML.Graphics.Color Color { get; set; }
         public bool IsAlpha { get; }
         public RectangleShape Shape { get; }
 
@@ -197,7 +330,7 @@ namespace SFML
             Shape = new RectangleShape(shapeSize)
             {
                 OutlineColor = SFML.Graphics.Color.Black,
-                OutlineThickness = -3
+                OutlineThickness = TweaksUI.PaletteItemOutlineThickness
             };
 
             // Возможно изменить всё отображение на отображение прозрачной текстуры с вкладом цвета,

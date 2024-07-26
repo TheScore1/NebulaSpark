@@ -54,6 +54,9 @@ namespace SFML
             keyStates[Keyboard.Key.S] = false;
             keyStates[Keyboard.Key.A] = false;
             keyStates[Keyboard.Key.D] = false;
+            keyStates[Keyboard.Key.X] = false;
+            keyStates[Keyboard.Key.LAlt] = false;
+            keyStates[Keyboard.Key.LControl] = false;
         }
 
         private void InitializeRandomColor()
@@ -85,6 +88,9 @@ namespace SFML
         
         private void OnKeyReleased(object sender, SFML.Window.KeyEventArgs e)
         {
+            if (e.Code == Keyboard.Key.X)
+                managerUI.SwitchActiveColors();
+
             if (keyStates.ContainsKey(e.Code))
                 keyStates[e.Code] = false;
         }
@@ -93,9 +99,28 @@ namespace SFML
         {
             if (e.Wheel == Mouse.Wheel.VerticalWheel)
             {
-                var cPanelSize = managerUI.canvasPanel.Size;
-                var cPanelPos = managerUI.canvasPanel.Position;
-                if (e.X >= cPanelPos.X && e.X <= cPanelSize.X + cPanelSize.X && e.Y >= cPanelPos.Y && e.Y <= cPanelPos.Y + cPanelSize.Y)
+                if (IsMouseOverPalette(e.X, e.Y) && keyStates[Keyboard.Key.LControl] == false)
+                {
+                    var pos = managerUI.palette.CurrentPosition;
+                    if (e.Delta < 0)
+                        managerUI.palette.ChangeItemPositions(new Vector2f(pos.X, pos.Y - 12));
+                    if (e.Delta > 0)
+                        managerUI.palette.ChangeItemPositions(new Vector2f(pos.X, pos.Y + 12));
+                }
+
+                if (IsMouseOverPalette(e.X, e.Y) && keyStates[Keyboard.Key.LControl] == true)
+                {
+                    var currentItemShapeSize = managerUI.palette.ItemShapeSize;
+                    if (currentItemShapeSize.X < TweaksUI.PaletteShapeItemMaxSize)
+                    {
+                        if (e.Delta < 0)
+                            managerUI.palette.ChangeItemShapeSize(new Vector2f(currentItemShapeSize.X + 4, currentItemShapeSize.Y + 4));
+                        if (e.Delta > 0)
+                            managerUI.palette.ChangeItemShapeSize(new Vector2f(currentItemShapeSize.X - 4, currentItemShapeSize.Y - 4));
+                    }
+                }
+
+                if (IsMouseOverCanvas(e.X, e.Y))
                 {
                     if (e.Delta < 0)
                     {
@@ -136,17 +161,31 @@ namespace SFML
 
         private void HandleLeftMouseBtnPressed(MouseButtonEventArgs e)
         {
+            if (TweaksUI.EyedropperIsFullScreenActive && keyStates[Keyboard.Key.LAlt])
+            {
+                managerUI.palette.GetPixelColorAsMain(this, e.X, e.Y);
+                return;
+            }
+
             if (IsMouseOverVerticalBorder(e))
                 isDraggingVerticalBar = true;
 
             if (IsMouseOverPaletteAddButton(e))
-                AddColorFromClipboard();
+                managerUI.palette.AddColor(new Graphics.Color(0, 0, 0));
+                // AddColorFromClipboard();
 
-            if (IsMouseOverPalette(e))
+            if (IsMouseOverPalette(e.X, e.Y))
                 managerUI.palette.CheckForColor(e, true);
 
+            
+
             if (IsMouseOverCanvas(e.X, e.Y))
-                PaintPixel(e.X, e.Y, true);
+            {
+                if (keyStates[Keyboard.Key.LAlt] && !TweaksUI.EyedropperIsFullScreenActive)
+                    managerUI.palette.GetPixelColorAsMain(this, e.X, e.Y);
+                else
+                    PaintPixel(e.X, e.Y, true);
+            }
         }
 
         private bool IsMouseOverVerticalBorder(MouseButtonEventArgs e)
@@ -172,9 +211,9 @@ namespace SFML
                 managerUI.palette.AddColor(new SFML.Graphics.Color(args[0], args[1], args[2]));
         }
 
-        private bool IsMouseOverPalette(MouseButtonEventArgs e)
+        private bool IsMouseOverPalette(int x, int y)
         {
-            return e.Y < managerUI.hBorderLastPos && e.X < managerUI.vBorderLastPos;
+            return y < managerUI.hBorderLastPos && x < managerUI.vBorderLastPos;
         }
         
         private bool IsMouseOverCanvas(int x, int y)
@@ -186,7 +225,7 @@ namespace SFML
         {
             if (IsMouseOverCanvas(e.X, e.Y))
                 PaintPixel(e.X, e.Y, false);
-            if (IsMouseOverPalette(e))
+            if (IsMouseOverPalette(e.X, e.Y))
                 managerUI.palette.CheckForColor(e, false);
         }
 
@@ -205,7 +244,7 @@ namespace SFML
         private void OnMouseMoved(object sender, MouseMoveEventArgs e)
         {
             if (isHoldingLeftButton && isDraggingVerticalBar)
-                if (e.X > 10 && e.X < Window.Size.X - 10)
+                if (e.X > TweaksUI.BorderMinSpace && e.X < Window.Size.X - TweaksUI.BorderMinSpace)
                     managerUI.RecalcVBorderLastPos(e.X);
             if (isHoldingLeftButton && IsMouseOverCanvas(e.X, e.Y))
                 PaintPixel(e.X, e.Y, true);
@@ -238,7 +277,7 @@ namespace SFML
                 uint pixelX = (uint)Math.Clamp(localX, 0, managerUI.canvas.Size.X - 1);
                 uint pixelY = (uint)Math.Clamp(localY, 0, managerUI.canvas.Size.Y - 1);
 
-                managerUI.canvas.SetPixelColor(pixelX, pixelY, isMainColor ? ManagerUI.ActiveMainColor : ManagerUI.ActiveSecondColor);
+                managerUI.canvas.SetPixelColor(pixelX, pixelY, isMainColor ? ManagerUI.MainColor : ManagerUI.SecondColor);
             }
         }
 
@@ -263,6 +302,9 @@ namespace SFML
             UpdateCamera();
             managerUI.Update();
         }
+
+        // переписать работу пипетки и холста. сделать так, чтобы при работе в режиме "по холсту" (TweaksUI.EyedropperIsFullScreenActive = false)
+        // брался цвет включая альфа канал? брался полностью прозрачный цвет (a = 0)?
 
         public override void Draw(GameTime gameTime)
         {

@@ -10,8 +10,10 @@ namespace SFML
     {
         GameLoop gameLoop;
 
-        public static SFML.Graphics.Color ActiveMainColor = SFML.Graphics.Color.Black;
-        public static SFML.Graphics.Color ActiveSecondColor = SFML.Graphics.Color.White;
+        public static SFML.Graphics.Color MainColor = SFML.Graphics.Color.Black;
+        public static SFML.Graphics.Color SecondColor = SFML.Graphics.Color.White;
+        public static int IdMainColor = -1;
+        public static int IdSecondColor = -1;
 
         public RectangleShape palettePanel;
         public RectangleShape colorWheelPanel;
@@ -33,10 +35,6 @@ namespace SFML
         public ManagerUI(GameLoop mainGameLoop)
         {
             gameLoop = mainGameLoop;
-
-            canvas = new Canvas(20, 20);
-            palette = new Palette();
-            colorWheel = new ColorWheel();
 
             vBorderLastPos = gameLoop.Window.Size.X / 4 - BorderSize / 2;
             hBorderLastPos = gameLoop.Window.Size.Y / 2 - BorderSize / 2;
@@ -83,31 +81,48 @@ namespace SFML
                 FillColor = new SFML.Graphics.Color(124, 85, 88)
             };
 
+            canvas = new Canvas(20, 20);
+            palette = new Palette(palettePanel);
+            colorWheel = new ColorWheel();
+
             colorMainPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
             colorMainPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 - Palette.DefaultShapeSize.X * 2);
-            if (ActiveMainColor.A == 255)
-                colorMainPanel.FillColor = ActiveMainColor;
-            else if (ActiveMainColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
-                colorMainPanel.FillColor = PaletteItem.ColorWithAlpha(ActiveMainColor);
+            if (MainColor.A == 255)
+                colorMainPanel.FillColor = MainColor;
+            else if (MainColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
+                colorMainPanel.FillColor = PaletteItem.ColorWithAlpha(MainColor);
             else
                 colorMainPanel.Texture = CreateTransparentTexture(4, 4);
-            colorMainPanel.OutlineColor = TweaksUI.OutlineColor;
-            colorMainPanel.OutlineThickness = TweaksUI.OutlineThickness;
+            colorMainPanel.OutlineColor = TweaksUI.OutlineColorActiveColorPanel;
+            colorMainPanel.OutlineThickness = TweaksUI.OutlineThicknessActiveColorPanels;
 
             colorSecondPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
             colorSecondPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 + 6);
-            if (ActiveSecondColor.A == 255)
-                colorSecondPanel.FillColor = ActiveSecondColor;
-            else if (ActiveSecondColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
-                colorSecondPanel.FillColor = PaletteItem.ColorWithAlpha(ActiveSecondColor);
+            if (SecondColor.A == 255)
+                colorSecondPanel.FillColor = SecondColor;
+            else if (SecondColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
+                colorSecondPanel.FillColor = PaletteItem.ColorWithAlpha(SecondColor);
             else
-                colorSecondPanel.OutlineColor = TweaksUI.OutlineColor;
-            colorSecondPanel.OutlineThickness = TweaksUI.OutlineThickness;
+                colorSecondPanel.OutlineColor = TweaksUI.OutlineColorActiveColorPanel;
+            colorSecondPanel.OutlineThickness = TweaksUI.OutlineThicknessActiveColorPanels;
         }
 
         public void LoadContent()
         {
             palette.LoadContent();
+        }
+
+        public void SwitchActiveColors()
+        {
+            var tempColor = MainColor;
+            MainColor = SecondColor;
+            SecondColor = tempColor;
+
+            var tempId = IdMainColor;
+            IdMainColor = IdSecondColor;
+            IdSecondColor = tempId;
+
+            palette.UpdateColorItemStyles();
         }
 
         public void RecalcVBorderLastPos(float size)
@@ -142,25 +157,27 @@ namespace SFML
 
             colorMainPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
             colorMainPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 - Palette.DefaultShapeSize.X * 2);
-            if (ActiveMainColor.A == 255)
-                colorMainPanel.FillColor = ActiveMainColor;
-            else if (ActiveMainColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
-                colorMainPanel.FillColor = PaletteItem.ColorWithAlpha(ActiveMainColor);
+            if (MainColor.A == 255)
+                colorMainPanel.FillColor = MainColor;
+            else if (MainColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
+                colorMainPanel.FillColor = PaletteItem.ColorWithAlpha(MainColor);
             else
                 colorMainPanel.Texture = CreateTransparentTexture(4, 4);
-            colorMainPanel.OutlineColor = TweaksUI.OutlineColor;
-            colorMainPanel.OutlineThickness = TweaksUI.OutlineThickness;
+            colorMainPanel.OutlineColor = TweaksUI.OutlineColorActiveColorPanel;
+            colorMainPanel.OutlineThickness = TweaksUI.OutlineThicknessActiveColorPanels;
 
             colorSecondPanel = new RectangleShape(Palette.DefaultShapeSize * 2);
             colorSecondPanel.Position = new Vector2f(canvasPanel.Position.X + 6, canvasPanel.Size.Y / 2 + 6);
-            if (ActiveSecondColor.A == 255)
-                colorSecondPanel.FillColor = ActiveSecondColor;
-            else if (ActiveSecondColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
-                colorSecondPanel.FillColor = PaletteItem.ColorWithAlpha(ActiveSecondColor);
+            if (SecondColor.A == 255)
+                colorSecondPanel.FillColor = SecondColor;
+            else if (SecondColor.A > 0) // надо создавать с вкладом цвета на фоне прозрачной текстуры или добавлять значок, что прозрачный цвет, изменить все условия
+                colorSecondPanel.FillColor = PaletteItem.ColorWithAlpha(SecondColor);
             else
                 colorSecondPanel.Texture = CreateTransparentTexture(4, 4);
-            colorSecondPanel.OutlineColor = TweaksUI.OutlineColor;
-            colorSecondPanel.OutlineThickness = TweaksUI.OutlineThickness;
+            colorSecondPanel.OutlineColor = TweaksUI.OutlineColorActiveColorPanel;
+            colorSecondPanel.OutlineThickness = TweaksUI.OutlineThicknessActiveColorPanels;
+
+            palette.Update();
         }
 
         private Texture CreateTransparentTexture(uint width, uint height)
@@ -185,7 +202,7 @@ namespace SFML
             canvas.Draw(gameLoop, canvasPanel);
 
             gameLoop.Window.Draw(palettePanel);
-            palette.Draw(gameLoop, palettePanel);
+            palette.Draw(gameLoop);
 
             gameLoop.Window.Draw(colorWheelPanel);
 
